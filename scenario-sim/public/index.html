@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>시나리오 시뮬레이터</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <aside id="sidebar">
+    <h1>시나리오<br>시뮬레이터</h1>
+    <p class="engine" id="engine-info"></p>
+    <button id="btn-app-settings" hidden>⚙ API 설정</button>
+    <button id="btn-new-world" class="primary">+ 새 세계 만들기</button>
+    <button id="btn-sample">예시: 1820 런던</button>
+    <h2>세계 목록</h2>
+    <ul id="world-list"></ul>
+  </aside>
+
+  <main id="main">
+    <section id="empty" class="empty">
+      <h2>당신은 이 세계의 신입니다</h2>
+      <p>세계(시대·장소)를 만들고 인물을 설정한 뒤, 시간을 흘려보내세요.<br>
+      인물들은 각자의 성격과 욕망대로 살아가고, 당신은 언제든 사건을 던져 넣을 수 있습니다.</p>
+    </section>
+
+    <section id="world" hidden>
+      <header class="world-head">
+        <div>
+          <h2 id="world-name"></h2>
+          <div class="sub" id="world-where"></div>
+        </div>
+        <div class="clock">
+          <div class="label">현재 시점</div>
+          <div id="current-date" class="date"></div>
+        </div>
+      </header>
+
+      <div class="controls">
+        <div class="quick">
+          <button data-jump="7d">+1주</button>
+          <button data-jump="1m">+1개월</button>
+          <button data-jump="6m">+6개월</button>
+          <button data-jump="1y">+1년</button>
+        </div>
+        <label>목표 날짜 <input type="date" id="target-date"></label>
+        <label>시뮬레이션 단위
+          <select id="step-unit">
+            <option value="auto">자동</option>
+            <option value="day">하루</option>
+            <option value="week">1주</option>
+            <option value="month">1개월</option>
+            <option value="season">3개월</option>
+            <option value="halfyear">6개월</option>
+          </select>
+        </label>
+        <button id="btn-run" class="primary">▶ 시간 흐르게 하기</button>
+        <button id="btn-stop" hidden>■ 중지</button>
+        <button id="btn-undo" title="마지막 실행 이전으로 되돌리기">↶ 되돌리기</button>
+      </div>
+      <div id="progress" hidden>
+        <div class="bar"><div id="progress-bar"></div></div>
+        <div id="progress-text"></div>
+        <ul id="progress-feed"></ul>
+      </div>
+
+      <nav class="tabs">
+        <button data-tab="timeline" class="active">타임라인</button>
+        <button data-tab="characters">인물</button>
+        <button data-tab="relations">관계</button>
+        <button data-tab="stories">이야기</button>
+        <button data-tab="god">⚡ 신의 개입</button>
+        <button data-tab="settings">세계 설정</button>
+      </nav>
+
+      <div class="tab" id="tab-timeline">
+        <div class="toolbar">
+          <select id="timeline-filter"><option value="">모든 인물</option></select>
+          <select id="timeline-importance">
+            <option value="1">모든 사건</option>
+            <option value="3">중요한 사건만 (3+)</option>
+            <option value="5">인생을 바꾼 사건만</option>
+          </select>
+          <button id="btn-chronicle">📖 기간 연대기 쓰기</button>
+        </div>
+        <div id="timeline"></div>
+      </div>
+
+      <div class="tab" id="tab-characters" hidden>
+        <div class="toolbar">
+          <button id="btn-add-character" class="primary">+ 인물 직접 만들기</button>
+          <input id="gen-brief" placeholder="예: 이스트엔드의 30대 아일랜드계 부두 노동자, 비밀 조직원">
+          <button id="btn-gen-character">✨ AI로 인물 생성</button>
+        </div>
+        <div id="character-grid" class="grid"></div>
+      </div>
+
+      <div class="tab" id="tab-relations" hidden>
+        <div class="relations-wrap">
+          <svg id="rel-graph" viewBox="0 0 600 600"></svg>
+          <div>
+            <h3>관계 설정</h3>
+            <form id="rel-form" class="form">
+              <div class="row">
+                <select name="a" required></select>
+                <span>↔</span>
+                <select name="b" required></select>
+              </div>
+              <label>관계 <input name="type" placeholder="친구, 연인, 원수, 부자..."></label>
+              <label>호감도 <input name="affinity" type="range" min="-100" max="100" value="0"><output></output></label>
+              <label>신뢰도 <input name="trust" type="range" min="0" max="100" value="50"><output></output></label>
+              <label>메모 <input name="notes"></label>
+              <div class="row"><button class="primary">저장</button><button type="button" id="btn-rel-delete">삭제</button></div>
+            </form>
+            <div id="rel-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-stories" hidden>
+        <div class="two-col">
+          <div><h3>진행 중인 이야기</h3><div id="stories-open"></div></div>
+          <div><h3>마무리된 이야기</h3><div id="stories-resolved"></div></div>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-god" hidden>
+        <div class="two-col">
+          <form id="god-form" class="form god">
+            <h3>⚡ 사건을 던져 넣기</h3>
+            <p class="hint">당신이 정한 사건은 그 날짜에 반드시 일어납니다. 인물들이 어떻게 반응할지는 그들의 성격에 달렸습니다.</p>
+            <label>제목 <input name="title" placeholder="예: 한밤의 화재"></label>
+            <label>무슨 일이 일어나는가 <textarea name="description" rows="5" required placeholder="예: 토머스 하트의 사무소에 불이 나서 모든 서류가 불탄다. 방화의 흔적이 있다."></textarea></label>
+            <div class="row">
+              <label>날짜 <input type="date" name="date"></label>
+              <label>종류
+                <select name="kind">
+                  <option>사건</option><option>재난</option><option>만남</option><option>행운</option><option>불운</option><option>비밀 폭로</option><option>역사적 사건</option><option>새 인물 등장</option>
+                </select>
+              </label>
+              <label>강도 <input type="range" name="intensity" min="1" max="5" value="3"><output>3</output></label>
+            </div>
+            <fieldset><legend>관련 인물 (비우면 세계 전체)</legend><div id="god-targets" class="checks"></div></fieldset>
+            <div class="row">
+              <button class="primary">사건 예약</button>
+              <button type="button" id="btn-god-now">지금 던지고 1주 진행</button>
+            </div>
+          </form>
+          <div>
+            <h3>개입 기록</h3>
+            <div id="god-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-settings" hidden>
+        <form id="settings-form" class="form">
+          <label>세계 이름 <input name="name"></label>
+          <label>시대 <input name="era"></label>
+          <label>장소 <input name="location"></label>
+          <label>세계 설명 <textarea name="description" rows="4"></textarea></label>
+          <label>사회 구조 / 규범 <textarea name="society" rows="3"></textarea></label>
+          <label>세계 규칙 (마법 유무, 역사 준수 여부 등) <textarea name="rules" rows="2"></textarea></label>
+          <label>분위기 <input name="tone"></label>
+          <label>현실성 <input type="range" name="realism" min="0" max="100"><output></output> <span class="hint">낮을수록 극적인 우연 허용</span></label>
+          <label>사건 밀도 <input type="range" name="eventDensity" min="0" max="100"><output></output> <span class="hint">높을수록 사건이 많음</span></label>
+          <label>세계 정세 요약 (시뮬레이션이 갱신) <textarea name="worldSummary" rows="4"></textarea></label>
+          <div class="row">
+            <button class="primary">저장</button>
+            <a id="btn-export" class="button">JSON 내보내기</a>
+            <button type="button" id="btn-delete-world" class="danger">세계 삭제</button>
+          </div>
+          <p class="hint" id="usage"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dlg-world">
+    <form method="dialog" id="world-form" class="form">
+      <h3>새 세계</h3>
+      <label>이름 <input name="name" required placeholder="예: 1920 경성"></label>
+      <label>시작 날짜 <input type="date" name="startDate" required value="1820-05-01"></label>
+      <label>시대 <input name="era" placeholder="예: 일제강점기, 문화통치기"></label>
+      <label>장소 <input name="location" placeholder="예: 경성 종로와 북촌"></label>
+      <label>세계 설명 <textarea name="description" rows="3"></textarea></label>
+      <label>사회 구조 / 규범 <textarea name="society" rows="2"></textarea></label>
+      <label>세계 규칙 <input name="rules" placeholder="예: 실제 역사를 따른다. 초자연 현상 없음."></label>
+      <div class="row"><button value="cancel" formnovalidate>취소</button><button value="ok" class="primary">만들기</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-character" class="wide">
+    <form method="dialog" id="char-form" class="form">
+      <h3 id="char-form-title">인물</h3>
+      <div class="char-cols">
+        <div>
+          <label>이름 <input name="name" required></label>
+          <div class="row">
+            <label>성별 <input name="gender"></label>
+            <label>생년월일 <input type="date" name="birthDate"></label>
+          </div>
+          <label>직업 / 신분 <input name="occupation"></label>
+          <label>현재 위치 <input name="location"></label>
+          <label>외모 <input name="appearance"></label>
+          <label>특성 (쉼표로 구분) <input name="traits"></label>
+          <label>가치관 <input name="values"></label>
+          <label>목표 (줄마다 하나) <textarea name="goals" rows="2"></textarea></label>
+          <label>두려움 <input name="fears"></label>
+          <label>비밀 <input name="secrets"></label>
+          <label>말투 <input name="speechStyle"></label>
+          <label>기술 (쉼표로 구분) <input name="skills"></label>
+          <label>배경 이야기 <textarea name="backstory" rows="3"></textarea></label>
+        </div>
+        <div>
+          <h4>성격 (빅파이브)</h4>
+          <div id="big-five"></div>
+          <h4>현재 상태</h4>
+          <label>건강 <input name="status.health"></label>
+          <label>재산 <input name="status.wealth"></label>
+          <label>기분 <input name="status.mood"></label>
+          <label>사회적 지위 <input name="status.social"></label>
+          <label>지금까지의 인생 <textarea name="lifeSummary" rows="4"></textarea></label>
+          <label class="inline"><input type="checkbox" name="alive"> 살아 있음</label>
+          <h4>기억</h4>
+          <ul id="char-memories" class="memories"></ul>
+        </div>
+      </div>
+      <div class="row">
+        <button value="cancel" formnovalidate>닫기</button>
+        <button type="button" id="btn-char-delete" class="danger">삭제</button>
+        <button value="ok" class="primary">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-interview" class="wide">
+    <form method="dialog" id="interview-form">
+      <h3 id="interview-title"></h3>
+      <div id="interview-log" class="chat"></div>
+      <div class="row">
+        <input name="q" placeholder="인물에게 질문하세요 (예: 요즘 가장 큰 고민이 뭔가?)" autocomplete="off">
+        <button type="button" id="btn-ask" class="primary">묻기</button>
+        <button value="close">닫기</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-text" class="wide">
+    <form method="dialog">
+      <h3 id="text-title"></h3>
+      <div id="text-body" class="prose"></div>
+      <div class="row"><button value="close">닫기</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-app-settings">
+    <form method="dialog" id="app-settings-form" class="form">
+      <h3>⚙ API 설정</h3>
+      <p class="hint">API 키를 넣으면 실제 시뮬레이션이 동작합니다. 키는 이 기기 안에만 저장되고 해당 회사의 API로만 전송됩니다. 비워 두면 모의 모드로 동작합니다.</p>
+      <label>AI 제공자
+        <select name="provider">
+          <option value="anthropic">Claude (Anthropic, 유료)</option>
+          <option value="gemini">Gemini (Google, 무료 사용량 있음)</option>
+        </select>
+      </label>
+      <fieldset data-provider="anthropic">
+        <legend>Claude</legend>
+        <label>Anthropic API 키 <input name="apiKey" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
+        <label>모델
+          <select name="model">
+            <option value="claude-opus-5-5">Claude Opus 5.5 (기본, 고품질)</option>
+            <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (빠르고 저렴)</option>
+            <option value="claude-haiku-5-5">Claude Haiku 5.5 (가장 저렴)</option>
+            <option value="claude-fable-5-1">Claude Fable 5.1 (최고 성능, 고가)</option>
+          </select>
+        </label>
+        <label>사고 깊이
+          <select name="effort">
+            <option value="low">낮음 (빠름)</option>
+            <option value="medium">보통</option>
+            <option value="high">높음</option>
+            <option value="xhigh">매우 높음</option>
+          </select>
+        </label>
+        <p class="hint">키 발급: console.anthropic.com → API Keys (크레딧 충전 필요)</p>
+      </fieldset>
+      <fieldset data-provider="gemini">
+        <legend>Gemini</legend>
+        <label>Gemini API 키 <input name="geminiKey" type="password" autocomplete="off" placeholder="AIza..."></label>
+        <label>모델
+          <select name="geminiModel">
+            <option value="gemini-flash-latest">gemini-flash-latest (최신 Flash, 기본)</option>
+          </select>
+        </label>
+        <button type="button" id="btn-gemini-models">모델 목록 불러오기</button>
+        <p class="hint">키 발급: aistudio.google.com → Get API key (무료). 무료 사용량은 분당 요청 수가 적어, 한도에 걸리면 앱이 잠시 기다렸다가 다시 시도합니다. 결제를 연결한 프로젝트의 키는 무료 사용량이 적용되지 않을 수 있습니다.</p>
+      </fieldset>
+      <div class="row"><button value="cancel" formnovalidate>취소</button><button value="ok" class="primary">저장</button></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
