@@ -10,15 +10,18 @@
 ```bash
 cd scenario-sim
 npm install
-export ANTHROPIC_API_KEY=sk-ant-...   # 없으면 모의 모드로 실행됨
-npm start                             # http://localhost:3000
+export ANTHROPIC_API_KEY=sk-ant-...   # Claude 사용 (또는 아래 Gemini)
+# export GEMINI_API_KEY=AIza...       # Gemini 사용 (무료 사용량 있음)
+npm start                             # http://localhost:3000  (키가 없으면 모의 모드)
 ```
 
 | 환경 변수 | 기본값 | 설명 |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | Claude API 키. 없으면 자동으로 모의 모드 |
-| `SIM_MODEL` | `claude-opus-5-5` | 시뮬레이션에 쓸 모델 |
-| `SIM_EFFORT` | `medium` | 사고 깊이 (`low` / `medium` / `high` / `xhigh` / `max`) |
+| `ANTHROPIC_API_KEY` | — | Claude API 키 |
+| `GEMINI_API_KEY` | — | Gemini API 키 |
+| `SIM_PROVIDER` | 키가 있는 쪽 | `anthropic` 또는 `gemini` (둘 다 있으면 Claude) |
+| `SIM_MODEL` | `claude-opus-5-5` / `gemini-flash-latest` | 시뮬레이션에 쓸 모델 |
+| `SIM_EFFORT` | `medium` | Claude 사고 깊이 (`low` / `medium` / `high` / `xhigh` / `max`) |
 | `SIM_MOCK` | — | `1`이면 API 키가 있어도 모의 엔진 사용 (`npm run mock`) |
 | `SIM_DATA_DIR` | `./data/worlds` | 세계 저장 위치 |
 | `PORT` | `3000` | 서버 포트 |
@@ -32,9 +35,9 @@ npm start                             # http://localhost:3000
 1. GitHub 저장소의 **Actions → "Android 테스트 APK"** 워크플로에서 최근 성공한 실행을 엽니다. (`scenario-sim/` 변경이 푸시되면 자동 실행, 수동 실행도 가능)
 2. 맨 아래 **Artifacts**의 `scenario-sim-android-test`를 내려받아 압축을 풀면 `scenario-sim-test.apk`가 있습니다.
 3. 폰으로 옮겨 설치합니다. (처음이면 "출처를 알 수 없는 앱 설치"를 허용해야 합니다)
-4. 앱을 처음 열면 **⚙ API 설정**이 뜹니다. Anthropic API 키를 넣으면 실제 시뮬레이션, 비워 두면 모의 모드입니다. 모델(Opus/Sonnet/Haiku/Fable)과 사고 깊이도 여기서 고릅니다.
+4. 앱을 처음 열면 **⚙ API 설정**이 뜹니다. AI 제공자(Claude 또는 Gemini)를 고르고 키를 넣으면 실제 시뮬레이션, 비워 두면 모의 모드입니다.
 
-> API 키는 기기 안에만 저장되고 Anthropic API로만 전송됩니다. 개인 테스트용 구성이므로 키가 든 폰을 다른 사람에게 넘기지 마세요.
+> API 키는 기기 안에만 저장되고 해당 회사의 API로만 전송됩니다. 개인 테스트용 구성이므로 키가 든 폰을 다른 사람에게 넘기지 마세요.
 
 ### 직접 빌드하기 (Android Studio / Android SDK 필요)
 
@@ -54,6 +57,19 @@ cd android && ./gradlew assembleDebug
 
 - 세계 JSON 내보내기는 파일 대신 **클립보드 복사**
 - 데이터는 앱을 지우면 함께 지워집니다
+
+## AI 제공자: Claude와 Gemini
+
+| | Claude (Anthropic) | Gemini (Google) |
+|---|---|---|
+| 비용 | 유료 (크레딧 충전 필요) | 무료 사용량 있음 |
+| 키 발급 | console.anthropic.com → API Keys | aistudio.google.com → Get API key |
+| 모델 | Opus 5.5(기본) / Sonnet 5.5 / Haiku 5.5 / Fable 5.1 | `gemini-flash-latest`(기본), 설정의 "모델 목록 불러오기"로 키에서 쓸 수 있는 모델 선택 |
+
+Gemini 무료 사용량 참고:
+- 분당·하루 요청 수 제한이 있습니다. 한도(429)에 걸리면 앱이 15초, 30초, 45초 기다렸다가 다시 시도하고, 그래도 안 되면 멈춥니다(그때까지 결과는 저장됨). 긴 기간은 단위를 크게(3개월 등) 잡으면 호출 수가 줄어듭니다.
+- 무료 사용량 조건과 모델 이름은 Google이 자주 바꿉니다. 정확한 한도는 AI Studio에서 확인하세요.
+- 결제를 연결한 Google 프로젝트의 키는 무료 사용량이 적용되지 않을 수 있습니다.
 
 ## 기능
 
@@ -79,7 +95,8 @@ server.js          HTTP 서버 (REST API + 시뮬레이션 진행 스트림 SSE)
 src/api.js         REST 라우팅 — 서버와 안드로이드 앱이 같은 코드를 사용
 src/config.js      API 키·모델 설정 (서버: 환경 변수, 앱: 설정 화면)
 src/world.js       세계/인물/관계 데이터 모델, 시뮬레이션 결과 반영, 모델에 넘길 상태 요약
-src/llm.js         Claude 호출 (구간 시뮬레이션은 JSON 스키마 구조화 출력, 장면/연대기/대화/인물 생성)
+src/llm.js         프롬프트와 JSON 스키마, Claude 호출 (구간 시뮬레이션, 장면/연대기/대화/인물 생성)
+src/gemini.js      Gemini 호출 (같은 프롬프트로 동작, 모델 목록 조회)
 src/engine.js      목표 날짜까지 구간을 나눠 순서대로 실행, 구간마다 저장
 src/mock.js        API 키 없이 흐름을 확인하는 모의 엔진
 src/dates.js       1800년대 등 과거 날짜 계산, 구간 분할

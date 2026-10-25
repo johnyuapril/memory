@@ -79,7 +79,9 @@ const charName = (id) => world.characters.find((c) => c.id === id)?.name || id;
 async function loadInfo() {
   const info = await api('/info');
   const el = $('#engine-info');
-  el.textContent = info.mock ? `모의 모드 — API 키 없음${local ? ' (⚙ 설정에서 입력)' : ''}` : `엔진: ${info.model} · ${info.effort}`;
+  el.textContent = info.mock
+    ? `모의 모드 — API 키 없음${local ? ' (⚙ 설정에서 입력)' : ''}`
+    : info.provider === 'gemini' ? `엔진: Gemini · ${info.model}` : `엔진: ${info.model} · ${info.effort}`;
   el.classList.toggle('mock', info.mock);
   $('#btn-app-settings').hidden = !local;
   return info;
@@ -617,18 +619,47 @@ $('#btn-export').addEventListener('click', async (e) => {
 });
 
 // 앱 설정 (API 키는 이 기기에만 저장)
+function setGeminiModels(models, selected) {
+  const sel = $('#app-settings-form').geminiModel;
+  const opts = [{ id: 'gemini-flash-latest', name: '최신 Flash, 기본' }, ...models.filter((m) => m.id !== 'gemini-flash-latest')];
+  if (selected && !opts.some((m) => m.id === selected)) opts.push({ id: selected, name: '저장된 모델' });
+  sel.innerHTML = opts.map((m) => `<option value="${esc(m.id)}">${esc(m.id)}${m.name && m.name !== m.id ? ` (${esc(m.name)})` : ''}</option>`).join('');
+  sel.value = selected || 'gemini-flash-latest';
+}
+
+function showProviderFields() {
+  const f = $('#app-settings-form');
+  $$('fieldset[data-provider]', f).forEach((fs) => (fs.hidden = fs.dataset.provider !== f.provider.value));
+}
+
 function openAppSettings() {
   const f = $('#app-settings-form');
   const s = local.getSettings();
+  f.provider.value = s.provider || 'anthropic';
   f.apiKey.value = s.apiKey || '';
   f.model.value = s.model || 'claude-opus-5-5';
   f.effort.value = s.effort || 'medium';
+  f.geminiKey.value = s.geminiKey || '';
+  setGeminiModels(s.geminiModels || [], s.geminiModel);
+  showProviderFields();
   $('#dlg-app-settings').showModal();
 }
 $('#btn-app-settings').addEventListener('click', openAppSettings);
+$('#app-settings-form').provider.addEventListener('change', showProviderFields);
+$('#btn-gemini-models').addEventListener('click', (e) => {
+  const f = $('#app-settings-form');
+  const key = f.geminiKey.value.trim();
+  if (!key) return toast('먼저 Gemini API 키를 입력하세요');
+  withBusy(e.target, async () => {
+    const models = await local.listGeminiModels(key);
+    setGeminiModels(models, f.geminiModel.value);
+    local.saveSettings({ ...local.getSettings(), geminiModels: models });
+    toast(`모델 ${models.length}개를 불러왔습니다`);
+  });
+});
 $('#dlg-app-settings').addEventListener('close', async () => {
   if ($('#dlg-app-settings').returnValue !== 'ok') return;
-  local.saveSettings(Object.fromEntries(new FormData($('#app-settings-form'))));
+  local.saveSettings({ ...local.getSettings(), ...Object.fromEntries(new FormData($('#app-settings-form'))) });
   await loadInfo();
 });
 

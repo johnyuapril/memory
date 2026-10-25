@@ -257,24 +257,45 @@
   <dialog id="dlg-app-settings">
     <form method="dialog" id="app-settings-form" class="form">
       <h3>⚙ API 설정</h3>
-      <p class="hint">Claude API 키를 넣으면 실제 시뮬레이션이 동작합니다. 키는 이 기기 안에만 저장되고 Anthropic API로만 전송됩니다. 비워 두면 모의 모드로 동작합니다.</p>
-      <label>Anthropic API 키 <input name="apiKey" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
-      <label>모델
-        <select name="model">
-          <option value="claude-opus-5-5">Claude Opus 5.5 (기본, 고품질)</option>
-          <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (빠르고 저렴)</option>
-          <option value="claude-haiku-5-5">Claude Haiku 5.5 (가장 저렴)</option>
-          <option value="claude-fable-5-1">Claude Fable 5.1 (최고 성능, 고가)</option>
+      <p class="hint">API 키를 넣으면 실제 시뮬레이션이 동작합니다. 키는 이 기기 안에만 저장되고 해당 회사의 API로만 전송됩니다. 비워 두면 모의 모드로 동작합니다.</p>
+      <label>AI 제공자
+        <select name="provider">
+          <option value="anthropic">Claude (Anthropic, 유료)</option>
+          <option value="gemini">Gemini (Google, 무료 사용량 있음)</option>
         </select>
       </label>
-      <label>사고 깊이
-        <select name="effort">
-          <option value="low">낮음 (빠름)</option>
-          <option value="medium">보통</option>
-          <option value="high">높음</option>
-          <option value="xhigh">매우 높음</option>
-        </select>
-      </label>
+      <fieldset data-provider="anthropic">
+        <legend>Claude</legend>
+        <label>Anthropic API 키 <input name="apiKey" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
+        <label>모델
+          <select name="model">
+            <option value="claude-opus-5-5">Claude Opus 5.5 (기본, 고품질)</option>
+            <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (빠르고 저렴)</option>
+            <option value="claude-haiku-5-5">Claude Haiku 5.5 (가장 저렴)</option>
+            <option value="claude-fable-5-1">Claude Fable 5.1 (최고 성능, 고가)</option>
+          </select>
+        </label>
+        <label>사고 깊이
+          <select name="effort">
+            <option value="low">낮음 (빠름)</option>
+            <option value="medium">보통</option>
+            <option value="high">높음</option>
+            <option value="xhigh">매우 높음</option>
+          </select>
+        </label>
+        <p class="hint">키 발급: console.anthropic.com → API Keys (크레딧 충전 필요)</p>
+      </fieldset>
+      <fieldset data-provider="gemini">
+        <legend>Gemini</legend>
+        <label>Gemini API 키 <input name="geminiKey" type="password" autocomplete="off" placeholder="AIza..."></label>
+        <label>모델
+          <select name="geminiModel">
+            <option value="gemini-flash-latest">gemini-flash-latest (최신 Flash, 기본)</option>
+          </select>
+        </label>
+        <button type="button" id="btn-gemini-models">모델 목록 불러오기</button>
+        <p class="hint">키 발급: aistudio.google.com → Get API key (무료). 무료 사용량은 분당 요청 수가 적어, 한도에 걸리면 앱이 잠시 기다렸다가 다시 시도합니다. 결제를 연결한 프로젝트의 키는 무료 사용량이 적용되지 않을 수 있습니다.</p>
+      </fieldset>
       <div class="row"><button value="cancel" formnovalidate>취소</button><button value="ok" class="primary">저장</button></div>
     </form>
   </dialog>

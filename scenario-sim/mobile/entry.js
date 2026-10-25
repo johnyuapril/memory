@@ -3,6 +3,7 @@ import { configure } from '../src/config.js';
 import { setBackend } from '../src/store.js';
 import { idbBackend } from '../src/store-idb.js';
 import { handleApi, startAdvance } from '../src/api.js';
+import { GEMINI_DEFAULT_MODEL, geminiListModels } from '../src/gemini.js';
 
 const SETTINGS_KEY = 'scenario-sim-settings';
 
@@ -14,8 +15,16 @@ function getSettings() {
   }
 }
 
+// 두 제공자의 키를 따로 저장해 두고, 고른 쪽의 키와 모델만 엔진에 넘긴다.
 function apply(s) {
-  configure({ apiKey: s.apiKey || '', model: s.model, effort: s.effort, browser: true });
+  const gemini = s.provider === 'gemini';
+  configure({
+    provider: gemini ? 'gemini' : 'anthropic',
+    apiKey: (gemini ? s.geminiKey : s.apiKey) || '',
+    model: gemini ? s.geminiModel || GEMINI_DEFAULT_MODEL : s.model || 'claude-opus-5-5',
+    effort: s.effort,
+    browser: true,
+  });
 }
 
 setBackend(idbBackend());
@@ -32,6 +41,7 @@ window.localApi = {
     await run((ev) => onEvent(structuredClone(ev)), { isCancelled: () => signal.aborted, signal });
   },
   getSettings,
+  listGeminiModels: geminiListModels,
   saveSettings(s) {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
     apply(s);

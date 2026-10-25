@@ -1,6 +1,7 @@
 // 실행 환경(서버/모바일 앱)마다 다르게 채워지는 설정. 서버는 환경 변수, 앱은 사용자 설정 화면에서 넣는다.
 export const config = {
-  apiKey: '',
+  provider: 'anthropic', // 'anthropic' | 'gemini'
+  apiKey: '', // 선택한 제공자의 키
   model: 'claude-opus-5-5',
   effort: 'medium',
   forceMock: false,

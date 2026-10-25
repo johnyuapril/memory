@@ -6,7 +6,7 @@ import { saveWorld, pushSnapshot } from './store.js';
 import { config, isMock } from './config.js';
 
 export function engineInfo() {
-  return { mock: isMock(), model: isMock() ? 'mock' : config.model, effort: config.effort, local: config.browser };
+  return { mock: isMock(), provider: config.provider, model: isMock() ? 'mock' : config.model, effort: config.effort, local: config.browser };
 }
 
 // targetDate까지 구간별로 시뮬레이션한다. 구간마다 저장하므로 중간에 멈춰도 그때까지의 결과는 남는다.

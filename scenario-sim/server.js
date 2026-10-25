@@ -7,15 +7,21 @@ import { setBackend } from './src/store.js';
 import { fileBackend } from './src/store-fs.js';
 import { handleApi, startAdvance, isAdvanceRoute } from './src/api.js';
 import { engineInfo } from './src/engine.js';
+import { GEMINI_DEFAULT_MODEL } from './src/gemini.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(here, 'public');
 const PORT = Number(process.env.PORT || 3000);
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml' };
 
+const anthropicKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || '';
+const geminiKey = process.env.GEMINI_API_KEY || '';
+// SIM_PROVIDER가 없으면 키가 있는 쪽을 쓴다 (둘 다 있으면 Claude).
+const provider = process.env.SIM_PROVIDER || (!anthropicKey && geminiKey ? 'gemini' : 'anthropic');
 configure({
-  apiKey: process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || '',
-  model: process.env.SIM_MODEL,
+  provider,
+  apiKey: provider === 'gemini' ? geminiKey : anthropicKey,
+  model: process.env.SIM_MODEL || (provider === 'gemini' ? GEMINI_DEFAULT_MODEL : undefined),
   effort: process.env.SIM_EFFORT,
   forceMock: process.env.SIM_MOCK === '1',
 });
@@ -81,5 +87,5 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   const info = engineInfo();
   console.log(`시나리오 시뮬레이터: http://localhost:${PORT}`);
-  console.log(info.mock ? '⚠ 모의 모드 (ANTHROPIC_API_KEY가 없거나 SIM_MOCK=1)' : `모델: ${info.model} (effort: ${info.effort})`);
+  console.log(info.mock ? '⚠ 모의 모드 (ANTHROPIC_API_KEY / GEMINI_API_KEY가 없거나 SIM_MOCK=1)' : `${info.provider} 모델: ${info.model}`);
 });

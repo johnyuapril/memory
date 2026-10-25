@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { buildContext, findCharacter, BIG_FIVE } from './world.js';
 import { ageAt } from './dates.js';
 import { config, onConfigChange } from './config.js';
+import { geminiGenerate } from './gemini.js';
 
 let client = null;
 onConfigChange(() => (client = null));
@@ -169,18 +170,26 @@ async function stream(params, options) {
   }
 }
 
-async function call({ system, prompt, maxTokens = 32000, schema, effort = config.effort, signal }) {
+// 설정된 제공자(Claude 또는 Gemini)로 한 번 생성한다. 결과 모양은 { text, usage }로 같다.
+async function generate({ system, messages, maxTokens = 32000, schema, effort = config.effort, signal }) {
+  if (config.provider === 'gemini') {
+    return geminiGenerate({ apiKey: config.apiKey, model: config.model, system, messages, maxTokens, schema, signal });
+  }
   const params = {
     model: config.model,
     max_tokens: maxTokens,
     system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: prompt }],
+    messages,
     output_config: { effort, ...(schema ? { format: { type: 'json_schema', schema } } : {}) },
     ...fallbackParams(),
   };
   const message = await stream(params, { signal });
   checkStop(message);
   return { text: textOf(message), usage: message.usage };
+}
+
+function call({ prompt, ...opts }) {
+  return generate({ ...opts, messages: [{ role: 'user', content: prompt }] });
 }
 
 function trackUsage(world, usage) {
@@ -286,10 +295,9 @@ export async function interview(world, characterId, question, history = []) {
 당신의 인간관계: ${JSON.stringify(rels)}
 질문하는 사람은 당신 앞에 나타난 낯선 존재다. 당신의 성격, 말투, 시대의 지식 수준에 맞게 1인칭으로 대답하라. 당신이 모르는 미래나 다른 사람의 비밀은 알지 못한다. 비밀은 성격상 털어놓을 만할 때만 말한다. 한국어로 답한다.${c.alive ? '' : ' (당신은 이미 세상을 떠났다. 영혼으로서 대답한다.)'}`;
   const messages = [...history.slice(-12), { role: 'user', content: question }];
-  const message = await stream({ model: config.model, max_tokens: 8000, system, messages, output_config: { effort: 'low' }, ...fallbackParams() });
-  checkStop(message);
-  trackUsage(world, message.usage);
-  return textOf(message);
+  const res = await generate({ system, messages, maxTokens: 8000, effort: 'low' });
+  trackUsage(world, res.usage);
+  return res.text;
 }
 
 const CHARACTER_SCHEMA = obj({
