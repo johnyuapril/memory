@@ -23,6 +23,38 @@ npm start                             # http://localhost:3000
 | `SIM_DATA_DIR` | `./data/worlds` | 세계 저장 위치 |
 | `PORT` | `3000` | 서버 포트 |
 
+## 안드로이드 앱 (테스트 버전)
+
+서버 없이 폰 안에서 전부 동작하는 앱입니다. 세계 데이터는 기기(IndexedDB)에 저장되고, 시뮬레이션은 앱이 Anthropic API를 직접 호출합니다.
+
+### APK 받기
+
+1. GitHub 저장소의 **Actions → "Android 테스트 APK"** 워크플로에서 최근 성공한 실행을 엽니다. (`scenario-sim/` 변경이 푸시되면 자동 실행, 수동 실행도 가능)
+2. 맨 아래 **Artifacts**의 `scenario-sim-android-test`를 내려받아 압축을 풀면 `scenario-sim-test.apk`가 있습니다.
+3. 폰으로 옮겨 설치합니다. (처음이면 "출처를 알 수 없는 앱 설치"를 허용해야 합니다)
+4. 앱을 처음 열면 **⚙ API 설정**이 뜹니다. Anthropic API 키를 넣으면 실제 시뮬레이션, 비워 두면 모의 모드입니다. 모델(Opus/Sonnet/Haiku/Fable)과 사고 깊이도 여기서 고릅니다.
+
+> API 키는 기기 안에만 저장되고 Anthropic API로만 전송됩니다. 개인 테스트용 구성이므로 키가 든 폰을 다른 사람에게 넘기지 마세요.
+
+### 직접 빌드하기 (Android Studio / Android SDK 필요)
+
+```bash
+cd scenario-sim
+npm install
+npm run build:mobile          # public/ + mobile/entry.js → mobile/www/
+npx cap add android           # 처음 한 번 (android/ 생성)
+npx cap sync android
+cd android && ./gradlew assembleDebug
+# → android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+`npx cap open android`로 Android Studio에서 열어 에뮬레이터나 USB로 연결한 폰에서 바로 실행할 수도 있습니다.
+
+### 앱에서 다른 점
+
+- 세계 JSON 내보내기는 파일 대신 **클립보드 복사**
+- 데이터는 앱을 지우면 함께 지워집니다
+
 ## 기능
 
 - **세계 설정**: 시대, 장소, 사회 구조, 세계 규칙(마법 유무 등), 분위기, *현실성*(낮을수록 극적인 우연 허용), *사건 밀도*
@@ -43,15 +75,18 @@ npm start                             # http://localhost:3000
 ## 구조
 
 ```
-server.js          HTTP 서버 + REST API + 시뮬레이션 진행 스트림(SSE)
+server.js          HTTP 서버 (REST API + 시뮬레이션 진행 스트림 SSE)
+src/api.js         REST 라우팅 — 서버와 안드로이드 앱이 같은 코드를 사용
+src/config.js      API 키·모델 설정 (서버: 환경 변수, 앱: 설정 화면)
 src/world.js       세계/인물/관계 데이터 모델, 시뮬레이션 결과 반영, 모델에 넘길 상태 요약
 src/llm.js         Claude 호출 (구간 시뮬레이션은 JSON 스키마 구조화 출력, 장면/연대기/대화/인물 생성)
 src/engine.js      목표 날짜까지 구간을 나눠 순서대로 실행, 구간마다 저장
 src/mock.js        API 키 없이 흐름을 확인하는 모의 엔진
 src/dates.js       1800년대 등 과거 날짜 계산, 구간 분할
-src/store.js       JSON 파일 저장, 되돌리기 스냅샷
+src/store.js       세계 저장, 되돌리기 스냅샷 (store-fs.js: 서버 파일 / store-idb.js: 앱 IndexedDB)
 src/sample.js      예시 세계 (1820 런던)
 public/            브라우저 UI (빌드 과정 없음)
+mobile/            안드로이드 앱용 진입점과 빌드 스크립트 (Capacitor)
 ```
 
 ### 시뮬레이션 방식

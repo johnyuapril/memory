@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>시나리오 시뮬레이터</title>
   <link rel="stylesheet" href="/style.css">
 </head>
@@ -10,6 +10,7 @@
   <aside id="sidebar">
     <h1>시나리오<br>시뮬레이터</h1>
     <p class="engine" id="engine-info"></p>
+    <button id="btn-app-settings" hidden>⚙ API 설정</button>
     <button id="btn-new-world" class="primary">+ 새 세계 만들기</button>
     <button id="btn-sample">예시: 1820 런던</button>
     <h2>세계 목록</h2>
@@ -250,6 +251,31 @@
       <h3 id="text-title"></h3>
       <div id="text-body" class="prose"></div>
       <div class="row"><button value="close">닫기</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-app-settings">
+    <form method="dialog" id="app-settings-form" class="form">
+      <h3>⚙ API 설정</h3>
+      <p class="hint">Claude API 키를 넣으면 실제 시뮬레이션이 동작합니다. 키는 이 기기 안에만 저장되고 Anthropic API로만 전송됩니다. 비워 두면 모의 모드로 동작합니다.</p>
+      <label>Anthropic API 키 <input name="apiKey" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
+      <label>모델
+        <select name="model">
+          <option value="claude-opus-5-5">Claude Opus 5.5 (기본, 고품질)</option>
+          <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (빠르고 저렴)</option>
+          <option value="claude-haiku-5-5">Claude Haiku 5.5 (가장 저렴)</option>
+          <option value="claude-fable-5-1">Claude Fable 5.1 (최고 성능, 고가)</option>
+        </select>
+      </label>
+      <label>사고 깊이
+        <select name="effort">
+          <option value="low">낮음 (빠름)</option>
+          <option value="medium">보통</option>
+          <option value="high">높음</option>
+          <option value="xhigh">매우 높음</option>
+        </select>
+      </label>
+      <div class="row"><button value="cancel" formnovalidate>취소</button><button value="ok" class="primary">저장</button></div>
     </form>
   </dialog>
 

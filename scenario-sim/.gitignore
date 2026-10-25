@@ -1,3 +1,5 @@
 node_modules/
 data/worlds/
 .env
+mobile/www/
+android/

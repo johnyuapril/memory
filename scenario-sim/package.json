@@ -6,15 +6,23 @@
   "scripts": {
     "start": "node server.js",
     "mock": "SIM_MOCK=1 node server.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "build:mobile": "node mobile/build.mjs",
+    "android:sync": "npm run build:mobile && npx cap sync android"
   },
   "license": "UNLICENSED",
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.3.0"
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3"
   },
   "type": "module",
   "private": true,
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "esbuild": "^0.28.2"
   }
 }

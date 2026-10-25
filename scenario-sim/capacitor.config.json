@@ -1,0 +1,8 @@
+{
+  "appId": "com.scenariosim.app",
+  "appName": "시나리오 시뮬레이터",
+  "webDir": "mobile/www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

@@ -11,7 +11,11 @@ let running = null; // 진행 중인 시뮬레이션의 AbortController
 let interviewHistory = [];
 let interviewCharId = null;
 
+// 안드로이드 앱에서는 서버 없이 기기 안의 API(mobile/entry.js)가 같은 경로를 처리한다.
+const local = window.localApi;
+
 async function api(path, opts = {}) {
+  if (local) return local.request(opts.method || 'GET', `/api${path}`, opts.body);
   const res = await fetch(`/api${path}`, {
     method: opts.method || 'GET',
     headers: opts.body ? { 'content-type': 'application/json' } : {},
@@ -75,8 +79,10 @@ const charName = (id) => world.characters.find((c) => c.id === id)?.name || id;
 async function loadInfo() {
   const info = await api('/info');
   const el = $('#engine-info');
-  el.textContent = info.mock ? '모의 모드 — API 키 없음' : `엔진: ${info.model} · ${info.effort}`;
+  el.textContent = info.mock ? `모의 모드 — API 키 없음${local ? ' (⚙ 설정에서 입력)' : ''}` : `엔진: ${info.model} · ${info.effort}`;
   el.classList.toggle('mock', info.mock);
+  $('#btn-app-settings').hidden = !local;
+  return info;
 }
 
 async function refreshWorldList() {
@@ -256,7 +262,7 @@ function renderSettings() {
   for (const k of ['era', 'location', 'description', 'society', 'rules', 'tone', 'realism', 'eventDensity']) f[k].value = world.setting[k];
   f.worldSummary.value = world.worldSummary || '';
   $$('input[type=range]', f).forEach((r) => (r.nextElementSibling.textContent = r.value));
-  $('#btn-export').href = `/api/worlds/${world.id}/export`;
+  if (!local) $('#btn-export').href = `/api/worlds/${world.id}/export`;
   const u = world.usage || {};
   $('#usage').textContent = `모델 호출 ${u.calls || 0}회 · 입력 ${(u.inputTokens || 0).toLocaleString()} 토큰 · 출력 ${(u.outputTokens || 0).toLocaleString()} 토큰`;
 }
@@ -273,8 +279,23 @@ async function runSimulation(targetDate) {
   $('#progress-bar').style.width = '0';
   const feed = (html) => $('#progress-feed').insertAdjacentHTML('afterbegin', `<li>${html}</li>`);
   let failed = null;
+  const onEvent = (ev) => {
+    if (ev.type === 'start') $('#progress-text').textContent = `${ev.from} → ${ev.to}, ${ev.total}개 구간으로 시뮬레이션합니다…`;
+    if (ev.type === 'step-start') $('#progress-text').textContent = `(${ev.index + 1}/${ev.total}) ${ev.from} ~ ${ev.to} 사이의 삶을 시뮬레이션하는 중…${ev.interventions ? ` ⚡ 신의 개입 ${ev.interventions}건` : ''}`;
+    if (ev.type === 'step-done') {
+      $('#progress-bar').style.width = `${((ev.index + 1) / ev.total) * 100}%`;
+      $('#current-date').textContent = prettyDate(ev.currentDate);
+      for (const e of ev.events) feed(`<b>${esc(e.date)}</b> ${esc(e.title)}`);
+      if (ev.summary) feed(`<i>${esc(ev.summary)}</i>`);
+    }
+    if (ev.type === 'error') failed = ev.message;
+  };
 
   try {
+    if (local) {
+      await local.advance(world.id, { targetDate, unit }, onEvent, running.signal);
+      return;
+    }
     const res = await fetch(`/api/worlds/${world.id}/advance`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -293,16 +314,7 @@ async function runSimulation(targetDate) {
       while ((i = buf.indexOf('\n\n')) >= 0) {
         const line = buf.slice(0, i).replace(/^data: /, '');
         buf = buf.slice(i + 2);
-        const ev = JSON.parse(line);
-        if (ev.type === 'start') $('#progress-text').textContent = `${ev.from} → ${ev.to}, ${ev.total}개 구간으로 시뮬레이션합니다…`;
-        if (ev.type === 'step-start') $('#progress-text').textContent = `(${ev.index + 1}/${ev.total}) ${ev.from} ~ ${ev.to} 사이의 삶을 시뮬레이션하는 중…${ev.interventions ? ` ⚡ 신의 개입 ${ev.interventions}건` : ''}`;
-        if (ev.type === 'step-done') {
-          $('#progress-bar').style.width = `${((ev.index + 1) / ev.total) * 100}%`;
-          $('#current-date').textContent = prettyDate(ev.currentDate);
-          for (const e of ev.events) feed(`<b>${esc(e.date)}</b> ${esc(e.title)}`);
-          if (ev.summary) feed(`<i>${esc(ev.summary)}</i>`);
-        }
-        if (ev.type === 'error') failed = ev.message;
+        onEvent(JSON.parse(line));
       }
     }
   } catch (e) {
@@ -592,8 +604,40 @@ $('#btn-delete-world').addEventListener('click', async () => {
   refreshWorldList();
 });
 
+// 앱에서는 파일 다운로드가 막혀 있어 JSON을 클립보드로 복사한다.
+$('#btn-export').addEventListener('click', async (e) => {
+  if (!local) return;
+  e.preventDefault();
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(await api(`/worlds/${world.id}/export`), null, 2));
+    toast('세계 데이터(JSON)를 클립보드에 복사했습니다');
+  } catch (err) {
+    toast(`복사 실패: ${err.message}`);
+  }
+});
+
+// 앱 설정 (API 키는 이 기기에만 저장)
+function openAppSettings() {
+  const f = $('#app-settings-form');
+  const s = local.getSettings();
+  f.apiKey.value = s.apiKey || '';
+  f.model.value = s.model || 'claude-opus-5-5';
+  f.effort.value = s.effort || 'medium';
+  $('#dlg-app-settings').showModal();
+}
+$('#btn-app-settings').addEventListener('click', openAppSettings);
+$('#dlg-app-settings').addEventListener('close', async () => {
+  if ($('#dlg-app-settings').returnValue !== 'ok') return;
+  local.saveSettings(Object.fromEntries(new FormData($('#app-settings-form'))));
+  await loadInfo();
+});
+
 // ---------- 시작 ----------
-await loadInfo();
+const info = await loadInfo();
+if (local && info.mock && !local.getSettings().dismissed) {
+  local.saveSettings({ ...local.getSettings(), dismissed: true });
+  openAppSettings();
+}
 await refreshWorldList();
 const last = localStorage.getItem('lastWorld');
 if (last) openWorld(last).catch(() => localStorage.removeItem('lastWorld'));

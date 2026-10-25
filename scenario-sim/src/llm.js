@@ -1,19 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { buildContext, findCharacter, BIG_FIVE } from './world.js';
 import { ageAt } from './dates.js';
-
-export const MODEL = process.env.SIM_MODEL || 'claude-opus-5-5';
-export const EFFORT = process.env.SIM_EFFORT || 'medium';
+import { config, onConfigChange } from './config.js';
 
 let client = null;
+onConfigChange(() => (client = null));
 function getClient() {
-  client ??= new Anthropic();
+  // 모바일 앱에서는 웹뷰가 직접 API를 호출한다. 키는 사용자가 자기 기기에 넣은 본인 키다.
+  client ??= new Anthropic({ apiKey: config.apiKey, dangerouslyAllowBrowser: config.browser });
   return client;
 }
 
 // 가끔 안전 분류기가 요청을 거절할 수 있어 서버 측 대체 모델 재시도를 켠다(Haiku는 미지원).
 function fallbackParams() {
-  if (MODEL.includes('haiku')) return {};
+  if (config.model.includes('haiku')) return {};
   return { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
 }
 
@@ -154,17 +154,31 @@ function checkStop(message) {
   }
 }
 
-async function call({ system, prompt, maxTokens = 32000, schema, effort = EFFORT, signal }) {
+function friendlyError(e) {
+  if (e instanceof Anthropic.AuthenticationError) return new Error('API 키가 올바르지 않습니다. 설정에서 키를 확인하세요.');
+  if (e instanceof Anthropic.RateLimitError) return new Error('요청 한도를 넘었습니다. 잠시 후 다시 시도하세요.');
+  if (e instanceof Anthropic.APIConnectionError && !(e instanceof Anthropic.APIUserAbortError)) return new Error('Anthropic API에 연결하지 못했습니다. 인터넷 연결을 확인하세요.');
+  return e;
+}
+
+async function stream(params, options) {
+  try {
+    return await getClient().beta.messages.stream(params, options).finalMessage();
+  } catch (e) {
+    throw friendlyError(e);
+  }
+}
+
+async function call({ system, prompt, maxTokens = 32000, schema, effort = config.effort, signal }) {
   const params = {
-    model: MODEL,
+    model: config.model,
     max_tokens: maxTokens,
     system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: prompt }],
     output_config: { effort, ...(schema ? { format: { type: 'json_schema', schema } } : {}) },
     ...fallbackParams(),
   };
-  const stream = getClient().beta.messages.stream(params, { signal });
-  const message = await stream.finalMessage();
+  const message = await stream(params, { signal });
   checkStop(message);
   return { text: textOf(message), usage: message.usage };
 }
@@ -272,7 +286,7 @@ export async function interview(world, characterId, question, history = []) {
 당신의 인간관계: ${JSON.stringify(rels)}
 질문하는 사람은 당신 앞에 나타난 낯선 존재다. 당신의 성격, 말투, 시대의 지식 수준에 맞게 1인칭으로 대답하라. 당신이 모르는 미래나 다른 사람의 비밀은 알지 못한다. 비밀은 성격상 털어놓을 만할 때만 말한다. 한국어로 답한다.${c.alive ? '' : ' (당신은 이미 세상을 떠났다. 영혼으로서 대답한다.)'}`;
   const messages = [...history.slice(-12), { role: 'user', content: question }];
-  const message = await getClient().beta.messages.stream({ model: MODEL, max_tokens: 8000, system, messages, output_config: { effort: 'low' }, ...fallbackParams() }).finalMessage();
+  const message = await stream({ model: config.model, max_tokens: 8000, system, messages, output_config: { effort: 'low' }, ...fallbackParams() });
   checkStop(message);
   trackUsage(world, message.usage);
   return textOf(message);

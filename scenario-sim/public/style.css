@@ -7,7 +7,8 @@
   :root { --bg: #1c1a17; --panel: #25221e; --ink: #ece6dc; --muted: #a39a8d; --line: #3a352f; --accent: #e09a6a; --accent-2: #d6a65c; --god: #b38cf0; }
 }
 * { box-sizing: border-box; }
-body { margin: 0; display: flex; min-height: 100vh; background: var(--bg); color: var(--ink); font: 15px/1.6 "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif; }
+[hidden] { display: none !important; }
+body { margin: 0; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); display: flex; min-height: 100vh; background: var(--bg); color: var(--ink); font: 15px/1.6 "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif; }
 h1, h2, h3, h4 { font-family: "Noto Serif KR", Georgia, serif; margin: 0 0 .5em; }
 button, .button { font: inherit; padding: .45em .9em; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: var(--radius); cursor: pointer; text-decoration: none; display: inline-block; }
 button:hover, .button:hover { border-color: var(--accent); }
@@ -117,4 +118,8 @@ dialog::backdrop { background: rgba(0,0,0,.4); }
   #main { padding: 16px; }
   .two-col, .relations-wrap, .char-cols { grid-template-columns: 1fr; }
   #timeline .day { grid-template-columns: 1fr; gap: 4px; }
+  .world-head { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .clock { text-align: left; }
+  .clock .date { font-size: 1.5em; white-space: nowrap; }
+  .controls { gap: 8px; }
 }
