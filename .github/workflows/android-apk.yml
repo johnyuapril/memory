@@ -51,7 +51,8 @@ jobs:
       # 빌드마다 새 디버그 키가 생기면 폰에 이미 깔린 앱 위로 업데이트가 안 된다.
       # 저장소에 둔 테스트용 키로 항상 같은 서명을 쓴다.
       - name: 고정 디버그 서명 키 사용
-        run: mkdir -p ~/.android && cp mobile/debug.keystore ~/.android/debug.keystore
+        run: |
+          echo "apply from: rootProject.file('../mobile/android-signing.gradle')" >> android/app/build.gradle
 
       - name: 디버그 APK 빌드
         working-directory: scenario-sim/android

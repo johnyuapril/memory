@@ -1,0 +1,12 @@
+// CI에서 android/app/build.gradle 끝에 적용된다. 디버그 APK를 항상 저장소의 고정 테스트 키로 서명해
+// 새 버전을 이전 버전 위에 업데이트로 설치할 수 있게 한다.
+android {
+    signingConfigs {
+        debug {
+            storeFile rootProject.file('../mobile/debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+}
