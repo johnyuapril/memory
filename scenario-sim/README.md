@@ -53,6 +53,15 @@ cd android && ./gradlew assembleDebug
 
 `npx cap open android`로 Android Studio에서 열어 에뮬레이터나 USB로 연결한 폰에서 바로 실행할 수도 있습니다.
 
+### 설치가 안 될 때
+
+- **"앱이 설치되지 않았습니다"**: 서명이 다른 이전 버전이 깔려 있을 때 나옵니다. 이전 버전을 삭제한 뒤 설치하세요. (초기 빌드는 매번 다른 키로 서명됐습니다. 지금은 `mobile/debug.keystore`의 고정 키로 서명하므로 이후 버전은 그대로 업데이트됩니다.)
+- **Play 프로텍트 경고**: 개인 테스트용 앱이라 나올 수 있습니다. "무시하고 설치"를 고르세요.
+- **압축 파일**: Artifacts는 zip이므로 먼저 압축을 풀고 안의 `.apk`를 설치해야 합니다.
+- Android 7.0 이상이 필요합니다.
+
+> `mobile/debug.keystore`는 비밀번호가 공개된 **테스트 전용** 서명 키입니다(storepass/keypass `android`). Play 스토어 배포용으로 쓰면 안 됩니다.
+
 ### 앱에서 다른 점
 
 - 세계 JSON 내보내기는 파일 대신 **클립보드 복사**

@@ -48,9 +48,20 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      # 빌드마다 새 디버그 키가 생기면 폰에 이미 깔린 앱 위로 업데이트가 안 된다.
+      # 저장소에 둔 테스트용 키로 항상 같은 서명을 쓴다.
+      - name: 고정 디버그 서명 키 사용
+        run: mkdir -p ~/.android && cp mobile/debug.keystore ~/.android/debug.keystore
+
       - name: 디버그 APK 빌드
         working-directory: scenario-sim/android
         run: ./gradlew assembleDebug --no-daemon
+
+      - name: 서명 확인
+        run: |
+          APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
+          "$APKSIGNER" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | tee certs.txt
+          grep -qi "28dc6f157141e8d9f28d03d23e11bc16c2737d6e24bb62c285094ff9208bad8b" certs.txt
 
       - name: APK 이름 정리
         run: cp android/app/build/outputs/apk/debug/app-debug.apk scenario-sim-test.apk
